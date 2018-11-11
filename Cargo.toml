@@ -1,0 +1,9 @@
+[package]
+name = "NEAT-Pong"
+version = "0.1.0"
+authors = ["loovjo <jonathan.loov@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+sdl2 = "0.31"
+ytesrev = "0.2"
