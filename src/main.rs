@@ -15,8 +15,9 @@ fn main() {
 
     println!("{} x {}", map_im.width, map_im.height);
 
+    let game = Game::new(&map);
     let s = DrawableWrapper(GameScene {
-        games: vec![Game { map: &map }],
+        games: vec![game],
         im: map_im,
     });
 
@@ -37,10 +38,10 @@ struct GameScene<'a> {
 
 impl<'a> Drawable for GameScene<'a> {
     fn content(&self) -> Vec<&Drawable> {
-        vec![]
+        self.games.iter().map(|x| x as &Drawable).collect()
     }
     fn content_mut(&mut self) -> Vec<&mut Drawable> {
-        vec![]
+        self.games.iter_mut().map(|x| x as &mut Drawable).collect()
     }
     fn step(&mut self) {}
     fn state(&self) -> State {
@@ -49,5 +50,8 @@ impl<'a> Drawable for GameScene<'a> {
 
     fn draw(&self, canvas: &mut Canvas<Window>, position: &Position, settings: DrawSettings) {
         self.im.draw(canvas, position, settings);
+        for game in &self.games {
+            game.draw(canvas, position, settings);
+        }
     }
 }

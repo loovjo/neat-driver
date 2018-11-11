@@ -114,6 +114,10 @@ impl Map {
             height,
         }
     }
+
+    pub fn get_height(&self) -> usize {
+        self.data.len() / self.width
+    }
 }
 
 #[derive(Clone, Copy)]

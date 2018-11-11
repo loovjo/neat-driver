@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 sdl2 = "0.31"
 ytesrev = "0.2"
+lazy_static = "1.2"
