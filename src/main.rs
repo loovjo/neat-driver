@@ -1,3 +1,5 @@
+#![feature(bind_by_move_pattern_guards)]
+
 use std::fs::File;
 use ytesrev::prelude::*;
 use ytesrev::window::WSETTINGS_MAIN;
@@ -7,10 +9,16 @@ use sdl2::keyboard::Keycode;
 
 mod game;
 mod map;
+mod neat;
 use crate::game::*;
 use crate::map::*;
 
 fn main() {
+    neat::test();
+}
+
+#[allow(unused)]
+fn main_() {
     let img = PngImage::load_from_path(File::open("map.png").unwrap()).unwrap();
 
     let map = Map::create_from_image(&img);
