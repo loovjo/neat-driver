@@ -65,7 +65,7 @@ fn main() {
         rot_vel: 0.,
         old_species: vec![],
         time: 0.,
-        speed_mult: 1.,
+        speed_mult: 1,
         showing: None,
     });
 
@@ -94,7 +94,7 @@ struct GameScene<'a> {
     showing: Option<Vec<usize>>,
 
     time: f64,
-    speed_mult: f64,
+    speed_mult: u64,
 }
 
 impl<'a> Drawable for GameScene<'a> {
@@ -120,7 +120,7 @@ impl<'a> Drawable for GameScene<'a> {
                 ..
             } => {
                 self.rot_vel = -2.;
-                self.speed_mult /= 2.;
+                self.speed_mult -= 1;
                 println!("{}x", self.speed_mult);
             }
             Event::KeyDown {
@@ -128,7 +128,7 @@ impl<'a> Drawable for GameScene<'a> {
                 ..
             } => {
                 self.rot_vel = 2.;
-                self.speed_mult *= 2.;
+                self.speed_mult += 1;
                 println!("{}x", self.speed_mult);
             }
             Event::KeyDown {
@@ -154,11 +154,13 @@ impl<'a> Drawable for GameScene<'a> {
     fn update(&mut self, dt: f64) {
         self.time += dt;
 
-        for game in &mut self.games {
-            game.update(dt * self.speed_mult);
+        for i in 0..self.speed_mult {
+            for game in &mut self.games {
+                game.update(dt);
 
-            game.player_dir += self.rot_vel * dt * self.speed_mult;
-            game.player_speed += self.accel * dt * self.speed_mult;
+                game.player_dir += self.rot_vel * dt;
+                game.player_speed += self.accel * dt;
+            }
         }
 
         if self.time > 40. {
