@@ -26,9 +26,10 @@ pub struct Game<'a> {
     pub player_dir: f64, // In radians, 0 = right
     pub player_speed: f64,
     pub died: bool,
-    pub best_score: u64,
+    pub best_score: f64,
 
     pub controller: Controller,
+    pub time: f64,
 }
 
 pub enum Controller {
@@ -44,7 +45,8 @@ impl<'a> Game<'a> {
             player_dir: 0.,
             player_speed: 0.,
             died: false,
-            best_score: 0,
+            best_score: 0.,
+            time: 0.,
             controller: Controller::Human,
         }
     }
@@ -74,6 +76,7 @@ impl Drawable for Game<'_> {
         if self.died {
             return;
         }
+        self.time += dt;
         self.player_pos.0 += self.player_speed * self.player_dir.cos() * dt;
         self.player_pos.1 += self.player_speed * self.player_dir.sin() * dt;
 
@@ -85,8 +88,11 @@ impl Drawable for Game<'_> {
             Some(Tile::Wall) | None => {
                 self.died = true;
             }
-            Some(Tile::Ground(x)) if *x > self.best_score => {
-                self.best_score = *x;
+            Some(Tile::Ground(x)) => {
+                let score = *x as f64 / (self.time + 5.);
+                if score > self.best_score {
+                    self.best_score = score;
+                }
             }
             _ => {}
         }
