@@ -10,6 +10,8 @@ use ytesrev::prelude::*;
 use ytesrev::utils::line_aa;
 
 use crate::map::{Map, Tile};
+use crate::neat::Genome;
+use crate::NUM_INPUTS;
 
 lazy_static! {
     static ref CAR_TEXTURE: PngImage =
@@ -25,10 +27,17 @@ pub struct Game<'a> {
     pub player_speed: f64,
     pub died: bool,
     pub best_score: u64,
+
+    pub controller: Controller,
+}
+
+pub enum Controller {
+    NEAT(Genome),
+    Human,
 }
 
 impl<'a> Game<'a> {
-    pub fn new(map: &'a Map) -> Game<'a> {
+    pub fn new_human(map: &'a Map) -> Game<'a> {
         Game {
             map,
             player_pos: (map.start.0 as f64, map.start.1 as f64),
@@ -36,6 +45,7 @@ impl<'a> Game<'a> {
             player_speed: 0.,
             died: false,
             best_score: 0,
+            controller: Controller::Human,
         }
     }
 
@@ -79,6 +89,25 @@ impl Drawable for Game<'_> {
                 self.best_score = *x;
             }
             _ => {}
+        }
+
+        if let Controller::NEAT(genome) = &self.controller {
+            let mut inputs: [f64; NUM_INPUTS] = [0.; NUM_INPUTS];
+
+            for i in 0..NUM_INPUTS {
+                let d_angle = (i as f64 / (NUM_INPUTS - 1) as f64 - 0.5) * PI;
+                let angle = self.player_dir + d_angle;
+                let ray = self.cast_ray(self.player_pos, angle);
+
+                let dx = ray.0 - self.player_pos.0;
+                let dy = ray.1 - self.player_pos.1;
+                let dist = (dx * dx + dy * dy).sqrt();
+                inputs[i] = dist;
+            }
+
+            let res = genome.evaluate(&inputs);
+            self.player_speed += res[0] * dt * 40.;
+            self.player_dir += res[1] * dt * 10.;
         }
     }
 
@@ -139,8 +168,9 @@ impl Drawable for Game<'_> {
             )
             .expect("Can't make texture");
 
-        for &a in &[-PI / 2., 0., PI / 2.] {
-            let angle = self.player_dir + a;
+        for i in 0..NUM_INPUTS {
+            let d_angle = (i as f64 / (NUM_INPUTS - 1) as f64 - 0.5) * PI;
+            let angle = self.player_dir + d_angle;
             let ray = self.cast_ray(self.player_pos, angle);
 
             line_aa(

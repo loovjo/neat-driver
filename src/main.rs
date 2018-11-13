@@ -12,6 +12,10 @@ mod map;
 mod neat;
 use crate::game::*;
 use crate::map::*;
+use crate::neat::*;
+
+pub const POP_SIZE: usize = 20;
+pub const NUM_INPUTS: usize = 5;
 
 fn main() {
     let img = PngImage::load_from_path(File::open("map.png").unwrap()).unwrap();
@@ -21,9 +25,21 @@ fn main() {
 
     println!("{} x {}", map_im.width, map_im.height);
 
-    let game = Game::new(&map);
+    let mut games = Vec::with_capacity(POP_SIZE);
+    let mut g_id = 0;
+
+    for i in 0..POP_SIZE {
+        let (genome, new_g_id) = Genome::init(NUM_INPUTS, 2);
+        games.push(Game {
+            controller: Controller::NEAT(genome),
+            ..Game::new_human(&map)
+        });
+        g_id = new_g_id;
+    }
+
     let s = DrawableWrapper(GameScene {
-        games: vec![game],
+        games: games,
+        g_id,
         im: map_im,
         accel: 0.,
         rot_vel: 0.,
@@ -42,6 +58,8 @@ fn main() {
 struct GameScene<'a> {
     im: PngImage,
     games: Vec<Game<'a>>,
+
+    g_id: usize,
 
     accel: f64,
     rot_vel: f64,
