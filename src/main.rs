@@ -8,6 +8,8 @@ use ytesrev::window::WSETTINGS_MAIN;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
+use bincode::{deserialize_from, serialize_into};
+
 mod game;
 mod map;
 mod neat;
@@ -16,8 +18,10 @@ use crate::map::*;
 use crate::neat::*;
 
 pub const POP_SIZE: usize = 100;
-pub const NUM_INPUTS: usize = 5;
+pub const NUM_INPUTS: usize = 6;
 pub const SHOW: usize = 20;
+
+pub const SAVE_PATH: &str = "save.bc";
 
 fn main() {
     let img = PngImage::load_from_path(File::open("map.png").unwrap()).unwrap();
@@ -30,13 +34,26 @@ fn main() {
     let mut games = Vec::with_capacity(POP_SIZE);
     let mut g_id = 0;
 
-    for i in 0..POP_SIZE {
-        let (genome, new_g_id) = Genome::init(NUM_INPUTS, 2);
-        games.push(Game {
-            controller: Controller::NEAT(genome),
-            ..Game::new_human(&map)
-        });
-        g_id = new_g_id;
+    if let Ok(f) = File::open(SAVE_PATH) {
+        println!("Reading save!");
+        let (genomes, g_id_): (Vec<Genome>, usize) = deserialize_from(f).expect("Can't read");
+        g_id = g_id_;
+
+        for genome in genomes {
+            games.push(Game {
+                controller: Controller::NEAT(genome),
+                ..Game::new_human(&map)
+            });
+        }
+    } else {
+        for i in 0..POP_SIZE {
+            let (genome, new_g_id) = Genome::init(NUM_INPUTS, 2);
+            games.push(Game {
+                controller: Controller::NEAT(genome),
+                ..Game::new_human(&map)
+            });
+            g_id = new_g_id;
+        }
     }
 
     let s = DrawableWrapper(GameScene {
@@ -191,6 +208,12 @@ impl GameScene<'_> {
         self.old_species = species.clone();
 
         let new_population = next_generation(species, fitnesses, &mut self.g_id, true);
+
+        println!("Saving...");
+
+        let mut file = File::create(SAVE_PATH).unwrap();
+        serialize_into(file, &(new_population.clone(), self.g_id)).expect("Can't save");
+        println!("Done");
 
         for genome in new_population {
             self.games.push(Game {

@@ -94,7 +94,7 @@ impl Drawable for Game<'_> {
         if let Controller::NEAT(genome) = &self.controller {
             let mut inputs: [f64; NUM_INPUTS] = [0.; NUM_INPUTS];
 
-            for i in 0..NUM_INPUTS {
+            for i in 1..NUM_INPUTS {
                 let d_angle = (i as f64 / (NUM_INPUTS - 1) as f64 - 0.5) * PI;
                 let angle = self.player_dir + d_angle;
                 let ray = self.cast_ray(self.player_pos, angle);
@@ -104,6 +104,7 @@ impl Drawable for Game<'_> {
                 let dist = (dx * dx + dy * dy).sqrt();
                 inputs[i] = dist;
             }
+            inputs[0] = self.player_speed;
 
             let res = genome.evaluate(&inputs);
             self.player_speed += (res[0].atanh().max(-40.).min(40.)) * dt;

@@ -8,18 +8,20 @@ use rand::distributions::Normal;
 use rand::thread_rng;
 use rand::Rng;
 
+use serde_derive::{Serialize, Deserialize};
+
 const FACTOR_DISJOINT: f64 = 1.;
 const FACTOR_WDIFF: f64 = 0.2;
 const DIFF_THRESH: f64 = 4.;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Genome {
     pub nr_ins: usize,
     pub nr_outs: usize,
     pub connections: HashMap<usize, Connection>,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct Connection {
     pub from: usize,
     pub to: usize,
