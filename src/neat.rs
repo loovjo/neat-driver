@@ -446,6 +446,7 @@ pub fn next_generation(
 
 const TABLE: &[(f64, f64, f64)] = &[(0., 0., 0.), (0., 1., 1.), (1., 0., 1.), (1., 1., 0.)];
 
+#[allow(unused)]
 pub fn test_xor() {
     let pop = vec![Genome::init(2, 1); 1000];
     let mut g_id = pop[0].1;

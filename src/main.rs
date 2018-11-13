@@ -14,11 +14,6 @@ use crate::game::*;
 use crate::map::*;
 
 fn main() {
-    neat::test();
-}
-
-#[allow(unused)]
-fn main_() {
     let img = PngImage::load_from_path(File::open("map.png").unwrap()).unwrap();
 
     let map = Map::create_from_image(&img);
