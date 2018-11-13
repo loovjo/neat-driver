@@ -1,5 +1,6 @@
 #![feature(bind_by_move_pattern_guards)]
 
+use std::mem::replace;
 use std::fs::File;
 use ytesrev::prelude::*;
 use ytesrev::window::WSETTINGS_MAIN;
@@ -40,9 +41,11 @@ fn main() {
     let s = DrawableWrapper(GameScene {
         games: games,
         g_id,
+        map: &map,
         im: map_im,
         accel: 0.,
         rot_vel: 0.,
+        old_species: vec![],
     });
 
     let mut wmng = WindowManager::init_window(
@@ -58,11 +61,14 @@ fn main() {
 struct GameScene<'a> {
     im: PngImage,
     games: Vec<Game<'a>>,
+    map: &'a Map,
 
     g_id: usize,
 
     accel: f64,
     rot_vel: f64,
+
+    old_species: Vec<Vec<(Genome, usize)>>,
 }
 
 impl<'a> Drawable for GameScene<'a> {
@@ -72,7 +78,11 @@ impl<'a> Drawable for GameScene<'a> {
     fn content_mut(&mut self) -> Vec<&mut Drawable> {
         self.games.iter_mut().map(|x| x as &mut Drawable).collect()
     }
-    fn step(&mut self) {}
+    fn step(&mut self) {
+        println!("Evolving");
+        self.evolve();
+    }
+
     fn state(&self) -> State {
         State::Working
     }
@@ -118,12 +128,51 @@ impl<'a> Drawable for GameScene<'a> {
             game.player_dir += self.rot_vel * dt;
             game.player_speed += self.accel * dt;
         }
+
+        for game in &self.games {
+            if !game.died {
+                return;
+            }
+        }
+
+        self.evolve();
     }
 
     fn draw(&self, canvas: &mut Canvas<Window>, position: &Position, settings: DrawSettings) {
         self.im.draw(canvas, position, settings);
         for game in &self.games {
             game.draw(canvas, position, settings);
+        }
+    }
+}
+
+impl GameScene<'_> {
+    fn evolve(&mut self) {
+        let mut population = Vec::with_capacity(POP_SIZE);
+        let mut fitnesses = Vec::with_capacity(POP_SIZE);
+
+        for game in self.games.drain(..) {
+            match game.controller {
+                Controller::NEAT(genome) => {
+                    population.push(genome);
+                    fitnesses.push(game.best_score as f64);
+                }
+                _ => {}
+            }
+        }
+
+        let old_species = replace(&mut self.old_species, Vec::new());
+
+        let species = class_species(population, old_species);
+        self.old_species = species.clone();
+
+        let new_population = next_generation(species, fitnesses, &mut self.g_id,true);
+
+        for genome in new_population {
+            self.games.push(Game {
+                controller: Controller::NEAT(genome),
+                ..Game::new_human(self.map)
+            });
         }
     }
 }
