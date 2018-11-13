@@ -1,7 +1,7 @@
 #![feature(bind_by_move_pattern_guards)]
 
-use std::mem::replace;
 use std::fs::File;
+use std::mem::replace;
 use ytesrev::prelude::*;
 use ytesrev::window::WSETTINGS_MAIN;
 
@@ -15,8 +15,9 @@ use crate::game::*;
 use crate::map::*;
 use crate::neat::*;
 
-pub const POP_SIZE: usize = 20;
+pub const POP_SIZE: usize = 100;
 pub const NUM_INPUTS: usize = 5;
+pub const SHOW: usize = 20;
 
 fn main() {
     let img = PngImage::load_from_path(File::open("map.png").unwrap()).unwrap();
@@ -46,6 +47,9 @@ fn main() {
         accel: 0.,
         rot_vel: 0.,
         old_species: vec![],
+        time: 0.,
+        speed_mult: 1.,
+        showing: None,
     });
 
     let mut wmng = WindowManager::init_window(
@@ -69,6 +73,11 @@ struct GameScene<'a> {
     rot_vel: f64,
 
     old_species: Vec<Vec<(Genome, usize)>>,
+
+    showing: Option<Vec<usize>>,
+
+    time: f64,
+    speed_mult: f64,
 }
 
 impl<'a> Drawable for GameScene<'a> {
@@ -94,12 +103,16 @@ impl<'a> Drawable for GameScene<'a> {
                 ..
             } => {
                 self.rot_vel = -2.;
+                self.speed_mult /= 2.;
+                println!("{}x", self.speed_mult);
             }
             Event::KeyDown {
                 keycode: Some(Keycode::Right),
                 ..
             } => {
                 self.rot_vel = 2.;
+                self.speed_mult *= 2.;
+                println!("{}x", self.speed_mult);
             }
             Event::KeyDown {
                 keycode: Some(Keycode::Up),
@@ -122,11 +135,17 @@ impl<'a> Drawable for GameScene<'a> {
     }
 
     fn update(&mut self, dt: f64) {
-        for game in &mut self.games {
-            game.update(dt);
+        self.time += dt;
 
-            game.player_dir += self.rot_vel * dt;
-            game.player_speed += self.accel * dt;
+        for game in &mut self.games {
+            game.update(dt * self.speed_mult);
+
+            game.player_dir += self.rot_vel * dt * self.speed_mult;
+            game.player_speed += self.accel * dt * self.speed_mult;
+        }
+
+        if self.time > 40. {
+            self.evolve();
         }
 
         for game in &self.games {
@@ -140,7 +159,10 @@ impl<'a> Drawable for GameScene<'a> {
 
     fn draw(&self, canvas: &mut Canvas<Window>, position: &Position, settings: DrawSettings) {
         self.im.draw(canvas, position, settings);
-        for game in &self.games {
+
+        // Find best
+
+        for game in &self.games[0..SHOW] {
             game.draw(canvas, position, settings);
         }
     }
@@ -148,6 +170,8 @@ impl<'a> Drawable for GameScene<'a> {
 
 impl GameScene<'_> {
     fn evolve(&mut self) {
+        self.time = 0.;
+
         let mut population = Vec::with_capacity(POP_SIZE);
         let mut fitnesses = Vec::with_capacity(POP_SIZE);
 
@@ -166,7 +190,7 @@ impl GameScene<'_> {
         let species = class_species(population, old_species);
         self.old_species = species.clone();
 
-        let new_population = next_generation(species, fitnesses, &mut self.g_id,true);
+        let new_population = next_generation(species, fitnesses, &mut self.g_id, true);
 
         for genome in new_population {
             self.games.push(Game {

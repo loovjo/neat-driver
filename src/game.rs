@@ -106,7 +106,7 @@ impl Drawable for Game<'_> {
             }
 
             let res = genome.evaluate(&inputs);
-            self.player_speed += res[0] * dt * 40.;
+            self.player_speed += (res[0].atanh().max(-40.).min(40.)) * dt;
             self.player_dir += res[1] * dt * 10.;
         }
     }

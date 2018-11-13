@@ -441,6 +441,8 @@ pub fn next_generation(
         println!("Fitness deviation: {:?}", deviation);
     }
 
+    rng.shuffle(&mut result);
+
     result
 }
 
