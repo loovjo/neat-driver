@@ -145,9 +145,9 @@ impl Drawable for Game<'_> {
                 if let Ok(ref mut textures) = SPECIES_TEXTURES.lock() {
                     let (car, crash) = &textures[s];
                     if self.died {
-                        self.draw_texture(canvas, position, &car);
-                    } else {
                         self.draw_texture(canvas, position, &crash);
+                    } else {
+                        self.draw_texture(canvas, position, &car);
                     }
                 }
             }
