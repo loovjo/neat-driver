@@ -136,12 +136,48 @@ impl Drawable for Game<'_> {
     }
 
     fn draw(&self, canvas: &mut Canvas<Window>, position: &Position, settings: DrawSettings) {
-        let car_texture = match self.controller {
-            Controller::NEAT(_, s) if self.died => get_texture_from_species(s).1,
-            Controller::NEAT(_, s) => get_texture_from_species(s).0,
-            Controller::Human => (*CAR_TEXTURE_PLAYER).clone(),
-        };
+        let r = position.into_rect_with_size(self.map.width as u32, self.map.get_height() as u32);
 
+        match self.controller {
+            Controller::NEAT(_, s) => {
+                load_species(s);
+
+                if let Ok(ref mut textures) = SPECIES_TEXTURES.lock() {
+                    let (car, crash) = &textures[s];
+                    if self.died {
+                        self.draw_texture(canvas, position, &car);
+                    } else {
+                        self.draw_texture(canvas, position, &crash);
+                    }
+                }
+            }
+            Controller::Human => self.draw_texture(canvas, position, &*CAR_TEXTURE_PLAYER),
+        }
+
+        for i in 0..NUM_INPUTS - 1 {
+            let d_angle = (i as f64 / (NUM_INPUTS - 2) as f64 - 0.5) * PI;
+            let angle = self.player_dir + d_angle;
+            let ray = self.cast_ray(self.player_pos, angle);
+
+            line_aa(
+                canvas,
+                (
+                    self.player_pos.0 + r.x() as f64,
+                    self.player_pos.1 + r.y() as f64,
+                ),
+                (ray.0 + r.x() as f64, ray.1 + r.y() as f64),
+            );
+        }
+    }
+}
+
+impl Game<'_> {
+    fn draw_texture(
+        &self,
+        canvas: &mut Canvas<Window>,
+        position: &Position,
+        car_texture: &PngImage,
+    ) {
         let r = position.into_rect_with_size(self.map.width as u32, self.map.get_height() as u32);
 
         // Draw car
@@ -155,9 +191,7 @@ impl Drawable for Game<'_> {
             .expect("Can't make texture");
 
         texture.set_blend_mode(BlendMode::Blend);
-        texture
-            .update(None, car_texture.data.as_slice(), 4 * car_texture.width)
-            .expect("Can't make texture");
+        texture.update(None, car_texture.data.as_slice(), 4 * car_texture.width);
 
         let at = Point::new(
             self.player_pos.0 as i32 + r.x(),
@@ -178,20 +212,5 @@ impl Drawable for Game<'_> {
                 false,
             )
             .expect("Can't make texture");
-
-        for i in 0..NUM_INPUTS - 1 {
-            let d_angle = (i as f64 / (NUM_INPUTS - 2) as f64 - 0.5) * PI;
-            let angle = self.player_dir + d_angle;
-            let ray = self.cast_ray(self.player_pos, angle);
-
-            line_aa(
-                canvas,
-                (
-                    self.player_pos.0 + r.x() as f64,
-                    self.player_pos.1 + r.y() as f64,
-                ),
-                (ray.0 + r.x() as f64, ray.1 + r.y() as f64),
-            );
-        }
     }
 }

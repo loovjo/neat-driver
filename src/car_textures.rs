@@ -23,8 +23,9 @@ lazy_static! {
         Arc::new(Mutex::new(Vec::new()));
 }
 
-pub fn get_texture_from_species(species: usize) -> (PngImage, PngImage) {
+pub fn load_species(species: usize) {
     let mut rng = thread_rng();
+
     if let Ok(ref mut textures) = SPECIES_TEXTURES.lock() {
         while textures.len() <= species {
             println!("Making {}", species);
@@ -35,10 +36,6 @@ pub fn get_texture_from_species(species: usize) -> (PngImage, PngImage) {
                 shift_hue(&*CAR_BROKEN_TEXTURE, shift.0, shift.1),
             ));
         }
-
-        textures[species].clone()
-    } else {
-        unreachable!("o no")
     }
 }
 
