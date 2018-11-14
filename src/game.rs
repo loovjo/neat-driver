@@ -2,28 +2,15 @@ use std::fs::File;
 
 use std::f64::consts::PI;
 
-use lazy_static::lazy_static;
-
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::BlendMode;
 use ytesrev::prelude::*;
 use ytesrev::utils::line_aa;
 
+use crate::car_textures::*;
 use crate::map::{Map, Tile};
 use crate::neat::Genome;
 use crate::NUM_INPUTS;
-
-lazy_static! {
-    static ref CAR_TEXTURE_AI: PngImage =
-        PngImage::load_from_path(File::open("car.png").unwrap()).unwrap();
-    static ref CAR_BROKEN_TEXTURE: PngImage =
-        PngImage::load_from_path(File::open("car_broken.png").unwrap()).unwrap();
-    static ref CAR_TEXTURE_PLAYER: PngImage = PngImage::load_from_path_transform(
-        File::open("car.png").unwrap(),
-        |col| Color::RGBA(col.r, col.b, col.g, col.a)
-    )
-    .unwrap();
-}
 
 pub struct Game<'a> {
     pub map: &'a Map,
@@ -40,7 +27,7 @@ pub struct Game<'a> {
 }
 
 pub enum Controller {
-    NEAT(Genome),
+    NEAT(Genome, usize),
     Human,
 }
 
@@ -114,7 +101,7 @@ impl Drawable for Game<'_> {
             _ => {}
         }
 
-        if let Controller::NEAT(genome) = &self.controller {
+        if let Controller::NEAT(genome, _) = &self.controller {
             let mut inputs: [f64; NUM_INPUTS] = [0.; NUM_INPUTS];
 
             for i in 1..NUM_INPUTS {
@@ -149,14 +136,12 @@ impl Drawable for Game<'_> {
     }
 
     fn draw(&self, canvas: &mut Canvas<Window>, position: &Position, settings: DrawSettings) {
-        let car_texture: &PngImage;
-        if let Controller::Human = self.controller {
-            car_texture = &*CAR_TEXTURE_PLAYER;
-        } else if !self.died {
-            car_texture = &*CAR_TEXTURE_AI;
-        } else {
-            car_texture = &*CAR_BROKEN_TEXTURE;
-        }
+        let car_texture = match self.controller {
+            Controller::NEAT(_, _) if self.died => (*CAR_BROKEN_TEXTURE).clone(),
+            Controller::NEAT(_, s) => get_texture_from_species(s),
+            Controller::Human => (*CAR_TEXTURE_PLAYER).clone(),
+        };
+
         let r = position.into_rect_with_size(self.map.width as u32, self.map.get_height() as u32);
 
         // Draw car

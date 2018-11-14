@@ -12,9 +12,11 @@ use sdl2::mouse::MouseUtil;
 
 use bincode::{deserialize_from, serialize_into};
 
+mod car_textures;
 mod game;
 mod map;
 mod neat;
+
 use crate::game::*;
 use crate::map::*;
 use crate::neat::*;
@@ -45,7 +47,7 @@ fn main() {
 
         for genome in genomes {
             games.push(Game {
-                controller: Controller::NEAT(genome),
+                controller: Controller::NEAT(genome, 0),
                 ..Game::new_human(&map)
             });
         }
@@ -53,13 +55,14 @@ fn main() {
         for i in 0..POP_SIZE {
             let (genome, new_g_id) = Genome::init(NUM_INPUTS, 2);
             games.push(Game {
-                controller: Controller::NEAT(genome),
+                controller: Controller::NEAT(genome, 0),
                 ..Game::new_human(&map)
             });
             g_id = new_g_id;
         }
     }
 
+    // games.clear();
     // games.push(Game::new_human(&map));
 
     let s = DrawableWrapper(GameScene {
@@ -67,7 +70,6 @@ fn main() {
         g_id,
         map: &map,
         im: map_im,
-        old_species: vec![],
         speed_mult: 1,
         showing: None,
         place_mouse: Cell::new(false),
@@ -95,8 +97,6 @@ struct GameScene<'a> {
     map: &'a Map,
 
     g_id: usize,
-
-    old_species: Vec<Vec<(Genome, usize)>>,
 
     showing: Option<Vec<usize>>,
 
@@ -129,7 +129,9 @@ impl<'a> Drawable for GameScene<'a> {
                 keycode: Some(Keycode::Left),
                 ..
             } => {
-                self.speed_mult -= 1;
+                if self.speed_mult != 0 {
+                    self.speed_mult -= 1;
+                }
                 println!("{}x", self.speed_mult);
             }
             Event::KeyDown {
@@ -139,8 +141,9 @@ impl<'a> Drawable for GameScene<'a> {
                 self.speed_mult += 1;
                 println!("{}x", self.speed_mult);
             }
-            Event::MouseMotion { mut xrel, mut yrel, .. } => {
-
+            Event::MouseMotion {
+                mut xrel, mut yrel, ..
+            } => {
                 if xrel.abs() > yrel.abs() {
                     yrel = 0;
                 } else {
@@ -206,7 +209,7 @@ impl<'a> Drawable for GameScene<'a> {
 
         for (i, game) in self.games.iter().enumerate() {
             match game.controller {
-                Controller::NEAT(_) if i > SHOW => {
+                Controller::NEAT(_, _) if i > SHOW => {
                     continue;
                 }
                 _ => {}
@@ -230,10 +233,6 @@ impl<'a> Drawable for GameScene<'a> {
 impl GameScene<'_> {
     fn evolve(&mut self) {
         self.last_fitness_improvment = 0.;
-
-        let mut population = Vec::with_capacity(POP_SIZE);
-        let mut fitnesses = Vec::with_capacity(POP_SIZE);
-
         let has_human = self.games.iter().any(|x| {
             if let Controller::Human = x.controller {
                 true
@@ -242,22 +241,24 @@ impl GameScene<'_> {
             }
         });
 
-        for game in self.games.drain(..) {
+
+        let mut fitnesses = Vec::with_capacity(POP_SIZE);
+        let mut species: Vec<Vec<(Genome, usize)>> = Vec::new();
+
+        for (i, game) in self.games.drain(..).enumerate() {
             match game.controller {
-                Controller::NEAT(genome) => {
-                    population.push(genome);
-                    fitnesses.push(game.best_score as f64);
+                Controller::NEAT(genome, species_idx) => {
+                    while species.len() <= species_idx {
+                        species.push(Vec::new());
+                    }
+                    species[species_idx].push((genome, i));
+                    fitnesses.push(game.best_score);
                 }
                 _ => {}
             }
         }
 
-        let old_species = replace(&mut self.old_species, Vec::new());
-
-        let species = class_species(population, old_species);
-        self.old_species = species.clone();
-
-        let new_population = next_generation(species, fitnesses, &mut self.g_id, true);
+        let new_population = next_generation(species.clone(), fitnesses, &mut self.g_id, true);
 
         println!("Saving...");
 
@@ -265,11 +266,13 @@ impl GameScene<'_> {
         serialize_into(file, &(new_population.clone(), self.g_id)).expect("Can't save");
         println!("Done");
 
-        for genome in new_population {
-            self.games.push(Game {
-                controller: Controller::NEAT(genome),
-                ..Game::new_human(self.map)
-            });
+        for (i, species) in class_species(new_population, species).into_iter().enumerate() {
+            for (genome, _) in species {
+                self.games.push(Game {
+                    controller: Controller::NEAT(genome, i),
+                    ..Game::new_human(self.map)
+                });
+            }
         }
 
         if has_human {
