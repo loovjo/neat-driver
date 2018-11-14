@@ -19,17 +19,20 @@ lazy_static! {
         |col| Color::RGBA(col.r, col.b, col.g, col.a)
     )
     .unwrap();
-    pub static ref SPECIES_TEXTURES: Arc<Mutex<Vec<PngImage>>> = Arc::new(Mutex::new(Vec::new()));
+    pub static ref SPECIES_TEXTURES: Arc<Mutex<Vec<(PngImage, PngImage)>>> =
+        Arc::new(Mutex::new(Vec::new()));
 }
 
-pub fn get_texture_from_species(species: usize) -> PngImage {
+pub fn get_texture_from_species(species: usize) -> (PngImage, PngImage) {
     let mut rng = thread_rng();
     if let Ok(ref mut textures) = SPECIES_TEXTURES.lock() {
         while textures.len() <= species {
             println!("Making {}", species);
-            textures.push(generate_car_texture(
-                rng.gen_range(0., 1.),
-                rng.gen_range(0.5, 1.),
+            let shift = (rng.gen_range(0., 1.), rng.gen_range(0.5, 1.));
+
+            textures.push((
+                shift_hue(&*CAR_TEXTURE_AI, shift.0, shift.1),
+                shift_hue(&*CAR_BROKEN_TEXTURE, shift.0, shift.1),
             ));
         }
 
@@ -39,8 +42,8 @@ pub fn get_texture_from_species(species: usize) -> PngImage {
     }
 }
 
-pub fn generate_car_texture(hue_shift: f32, sat_shift: f32) -> PngImage {
-    let orig_data = (*CAR_TEXTURE_AI)
+pub fn shift_hue(im: &PngImage, hue_shift: f32, sat_shift: f32) -> PngImage {
+    let orig_data = im
         .data
         .as_slice()
         .iter()
@@ -68,8 +71,8 @@ pub fn generate_car_texture(hue_shift: f32, sat_shift: f32) -> PngImage {
     let data: Vec<f32> = LinSrgba::into_raw_slice(converted.as_slice()).to_vec();
 
     PngImage {
-        width: (*CAR_TEXTURE_AI).width,
-        height: (*CAR_TEXTURE_AI).height,
+        width: im.width,
+        height: im.height,
         data: data.into_iter().map(|x| (x * 256.) as u8).collect(),
     }
 }

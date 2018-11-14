@@ -27,6 +27,8 @@ pub const SHOW: usize = 20;
 
 pub const SAVE_PATH: &str = "save.bc";
 
+pub const MIN_DT: f64 = 0.02;
+
 static mut MOUSE: Option<MouseUtil> = None;
 
 fn main() {
@@ -169,28 +171,33 @@ impl<'a> Drawable for GameScene<'a> {
     }
 
     fn update(&mut self, dt: f64) {
-        if dt > 0.06 {
-            return;
-        }
-
         self.last_fitness_improvment += dt;
 
         for i in 0..self.speed_mult {
+            let mut dt_ = dt;
+            while dt_ < MIN_DT {
+                for game in &mut self.games {
+                    game.update(MIN_DT);
+                }
+                dt_ -= MIN_DT;
+            }
             for game in &mut self.games {
-                game.update(dt);
-
-                if game.improved {
-                    self.last_fitness_improvment = 0.;
-                    game.improved = false;
-                }
-                if let Controller::Human = game.controller {
-                    self.last_fitness_improvment = 0.;
-                }
+                game.update(dt_);
             }
         }
 
         if self.last_fitness_improvment > 10. {
             self.evolve();
+        }
+
+        for game in &mut self.games {
+            if game.improved {
+                self.last_fitness_improvment = 0.;
+                game.improved = false;
+            }
+            if let Controller::Human = game.controller {
+                self.last_fitness_improvment = 0.;
+            }
         }
 
         for game in &self.games {
@@ -241,7 +248,6 @@ impl GameScene<'_> {
             }
         });
 
-
         let mut fitnesses = Vec::with_capacity(POP_SIZE);
         let mut species: Vec<Vec<(Genome, usize)>> = Vec::new();
 
@@ -266,7 +272,10 @@ impl GameScene<'_> {
         serialize_into(file, &(new_population.clone(), self.g_id)).expect("Can't save");
         println!("Done");
 
-        for (i, species) in class_species(new_population, species).into_iter().enumerate() {
+        for (i, species) in class_species(new_population, species)
+            .into_iter()
+            .enumerate()
+        {
             for (genome, _) in species {
                 self.games.push(Game {
                     controller: Controller::NEAT(genome, i),

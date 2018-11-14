@@ -137,8 +137,8 @@ impl Drawable for Game<'_> {
 
     fn draw(&self, canvas: &mut Canvas<Window>, position: &Position, settings: DrawSettings) {
         let car_texture = match self.controller {
-            Controller::NEAT(_, _) if self.died => (*CAR_BROKEN_TEXTURE).clone(),
-            Controller::NEAT(_, s) => get_texture_from_species(s),
+            Controller::NEAT(_, s) if self.died => get_texture_from_species(s).1,
+            Controller::NEAT(_, s) => get_texture_from_species(s).0,
             Controller::Human => (*CAR_TEXTURE_PLAYER).clone(),
         };
 
