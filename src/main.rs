@@ -24,7 +24,7 @@ pub const SHOW: usize = 20;
 pub const SAVE_PATH: &str = "save.bc";
 
 fn main() {
-    let img = PngImage::load_from_path(File::open("map.png").unwrap()).unwrap();
+    let img = PngImage::load_from_path(File::open("map-alt.png").unwrap()).unwrap();
 
     let map = Map::create_from_image(&img);
     let map_im = map.clone().into_image();
@@ -55,6 +55,8 @@ fn main() {
             g_id = new_g_id;
         }
     }
+
+    games.push(Game::new_human(&map));
 
     let s = DrawableWrapper(GameScene {
         games: games,
@@ -119,7 +121,12 @@ impl<'a> Drawable for GameScene<'a> {
                 keycode: Some(Keycode::Left),
                 ..
             } => {
-                self.rot_vel = -2.;
+                self.rot_vel = -5.;
+            }
+            Event::KeyDown {
+                keycode: Some(Keycode::Num1),
+                ..
+            } => {
                 self.speed_mult -= 1;
                 println!("{}x", self.speed_mult);
             }
@@ -127,7 +134,12 @@ impl<'a> Drawable for GameScene<'a> {
                 keycode: Some(Keycode::Right),
                 ..
             } => {
-                self.rot_vel = 2.;
+                self.rot_vel = 5.;
+            }
+            Event::KeyDown {
+                keycode: Some(Keycode::Num2),
+                ..
+            } => {
                 self.speed_mult += 1;
                 println!("{}x", self.speed_mult);
             }
@@ -135,13 +147,13 @@ impl<'a> Drawable for GameScene<'a> {
                 keycode: Some(Keycode::Up),
                 ..
             } => {
-                self.accel = 20.;
+                self.accel = 40.;
             }
             Event::KeyDown {
                 keycode: Some(Keycode::Down),
                 ..
             } => {
-                self.accel = -20.;
+                self.accel = -40.;
             }
             Event::KeyUp { .. } => {
                 self.accel = 0.;
@@ -152,14 +164,22 @@ impl<'a> Drawable for GameScene<'a> {
     }
 
     fn update(&mut self, dt: f64) {
+        if dt > 0.06 {
+            return;
+        }
+
         self.time += dt;
 
         for i in 0..self.speed_mult {
             for game in &mut self.games {
                 game.update(dt);
 
-                game.player_dir += self.rot_vel * dt;
-                game.player_speed += self.accel * dt;
+                if !game.died {
+                    if let Controller::Human = game.controller {
+                        game.player_dir += self.rot_vel * dt;
+                        game.player_speed += self.accel * dt;
+                    }
+                }
             }
         }
 
@@ -181,7 +201,13 @@ impl<'a> Drawable for GameScene<'a> {
 
         // Find best
 
-        for game in &self.games[0..SHOW] {
+        for (i, game) in self.games.iter().enumerate() {
+            match game.controller {
+                Controller::NEAT(_) if i > SHOW => {
+                    continue;
+                }
+                _ => {}
+            }
             game.draw(canvas, position, settings);
         }
     }
@@ -193,6 +219,14 @@ impl GameScene<'_> {
 
         let mut population = Vec::with_capacity(POP_SIZE);
         let mut fitnesses = Vec::with_capacity(POP_SIZE);
+
+        let has_human = self.games.iter().any(|x| {
+            if let Controller::Human = x.controller {
+                true
+            } else {
+                false
+            }
+        });
 
         for game in self.games.drain(..) {
             match game.controller {
@@ -222,6 +256,10 @@ impl GameScene<'_> {
                 controller: Controller::NEAT(genome),
                 ..Game::new_human(self.map)
             });
+        }
+
+        if has_human {
+            self.games.push(Game::new_human(self.map));
         }
     }
 }

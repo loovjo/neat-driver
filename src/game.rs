@@ -14,10 +14,15 @@ use crate::neat::Genome;
 use crate::NUM_INPUTS;
 
 lazy_static! {
-    static ref CAR_TEXTURE: PngImage =
+    static ref CAR_TEXTURE_AI: PngImage =
         PngImage::load_from_path(File::open("car.png").unwrap()).unwrap();
     static ref CAR_BROKEN_TEXTURE: PngImage =
         PngImage::load_from_path(File::open("car_broken.png").unwrap()).unwrap();
+    static ref CAR_TEXTURE_PLAYER: PngImage = PngImage::load_from_path_transform(
+        File::open("car.png").unwrap(),
+        |col| Color::RGBA(col.r, col.b, col.g, col.a)
+    )
+    .unwrap();
 }
 
 pub struct Game<'a> {
@@ -80,6 +85,14 @@ impl Drawable for Game<'_> {
         self.player_pos.0 += self.player_speed * self.player_dir.cos() * dt;
         self.player_pos.1 += self.player_speed * self.player_dir.sin() * dt;
 
+        if self.player_pos.0 < 0.
+            || self.player_pos.1 < 0.
+            || self.player_pos.0 > self.map.width as f64
+            || self.player_pos.1 > self.map.get_height() as f64
+        {
+            self.died = true;
+        }
+
         match self
             .map
             .data
@@ -89,7 +102,7 @@ impl Drawable for Game<'_> {
                 self.died = true;
             }
             Some(Tile::Ground(x)) => {
-                let score = *x as f64 / (self.time + 5.);
+                let score = *x as f64 / (self.time + 10.);
                 if score > self.best_score {
                     self.best_score = score;
                 }
@@ -133,8 +146,10 @@ impl Drawable for Game<'_> {
 
     fn draw(&self, canvas: &mut Canvas<Window>, position: &Position, settings: DrawSettings) {
         let car_texture: &PngImage;
-        if !self.died {
-            car_texture = &*CAR_TEXTURE;
+        if let Controller::Human = self.controller {
+            car_texture = &*CAR_TEXTURE_PLAYER;
+        } else if !self.died {
+            car_texture = &*CAR_TEXTURE_AI;
         } else {
             car_texture = &*CAR_BROKEN_TEXTURE;
         }
@@ -175,8 +190,8 @@ impl Drawable for Game<'_> {
             )
             .expect("Can't make texture");
 
-        for i in 0..NUM_INPUTS {
-            let d_angle = (i as f64 / (NUM_INPUTS - 1) as f64 - 0.5) * PI;
+        for i in 0..NUM_INPUTS - 1 {
+            let d_angle = (i as f64 / (NUM_INPUTS - 2) as f64 - 0.5) * PI;
             let angle = self.player_dir + d_angle;
             let ray = self.cast_ray(self.player_pos, angle);
 
