@@ -35,6 +35,8 @@ pub struct Game<'a> {
 
     pub controller: Controller,
     pub time: f64,
+
+    pub improved: bool,
 }
 
 pub enum Controller {
@@ -53,6 +55,7 @@ impl<'a> Game<'a> {
             best_score: 0.,
             time: 0.,
             controller: Controller::Human,
+            improved: false,
         }
     }
 
@@ -105,6 +108,7 @@ impl Drawable for Game<'_> {
                 let score = *x as f64 / (self.time + 10.);
                 if score > self.best_score {
                     self.best_score = score;
+                    self.improved = true;
                 }
             }
             _ => {}

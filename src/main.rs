@@ -60,7 +60,7 @@ fn main() {
         }
     }
 
-    games.push(Game::new_human(&map));
+    // games.push(Game::new_human(&map));
 
     let s = DrawableWrapper(GameScene {
         games: games,
@@ -68,10 +68,10 @@ fn main() {
         map: &map,
         im: map_im,
         old_species: vec![],
-        time: 0.,
         speed_mult: 1,
         showing: None,
         place_mouse: Cell::new(false),
+        last_fitness_improvment: 0.,
     });
 
     let mut wmng = WindowManager::init_window(
@@ -100,10 +100,11 @@ struct GameScene<'a> {
 
     showing: Option<Vec<usize>>,
 
-    time: f64,
     speed_mult: u64,
 
     place_mouse: Cell<bool>,
+
+    last_fitness_improvment: f64,
 }
 
 impl<'a> Drawable for GameScene<'a> {
@@ -169,15 +170,23 @@ impl<'a> Drawable for GameScene<'a> {
             return;
         }
 
-        self.time += dt;
+        self.last_fitness_improvment += dt;
 
         for i in 0..self.speed_mult {
             for game in &mut self.games {
                 game.update(dt);
+
+                if game.improved {
+                    self.last_fitness_improvment = 0.;
+                    game.improved = false;
+                }
+                if let Controller::Human = game.controller {
+                    self.last_fitness_improvment = 0.;
+                }
             }
         }
 
-        if self.time > 40. {
+        if self.last_fitness_improvment > 10. {
             self.evolve();
         }
 
@@ -220,7 +229,7 @@ impl<'a> Drawable for GameScene<'a> {
 
 impl GameScene<'_> {
     fn evolve(&mut self) {
-        self.time = 0.;
+        self.last_fitness_improvment = 0.;
 
         let mut population = Vec::with_capacity(POP_SIZE);
         let mut fitnesses = Vec::with_capacity(POP_SIZE);
