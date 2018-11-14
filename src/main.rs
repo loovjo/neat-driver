@@ -152,7 +152,10 @@ impl<'a> Drawable for GameScene<'a> {
                     if !game.died {
                         if let Controller::Human = game.controller {
                             game.player_dir += xrel as f64 * 0.002;
-                            game.player_speed -= yrel as f64 * 0.8;
+                            game.player_speed -= yrel as f64 * 0.4;
+                            if game.player_speed < 0. {
+                                game.player_speed = 0.;
+                            }
                         }
                     }
                 }
