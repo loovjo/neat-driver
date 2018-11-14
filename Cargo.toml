@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 sdl2 = "0.31"
-ytesrev = "0.2"
+ytesrev = "0.2.4"
 lazy_static = "1.2"
 rand = "0.5"
 serde = "1.0"

@@ -18,9 +18,12 @@ impl Map {
         for x in 0..image.width {
             for y in 0..image.height {
                 let idx = x + y * image.width;
-                let b = image.data[4 * idx];
+                let r = image.data[4 * idx];
                 let g = image.data[4 * idx + 1];
-                let r = image.data[4 * idx + 2];
+                let b = image.data[4 * idx + 2];
+                let a = image.data[4 * idx + 3];
+
+                // println!("{} {} {} {}", a, r , g, b);
 
                 let b = match (r, g, b) {
                     (255, 255, 255) => Tile::Ground(u64::MAX),

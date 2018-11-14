@@ -1,5 +1,6 @@
 #![feature(bind_by_move_pattern_guards)]
 
+use std::cell::Cell;
 use std::fs::File;
 use std::mem::replace;
 use ytesrev::prelude::*;
@@ -7,6 +8,7 @@ use ytesrev::window::WSETTINGS_MAIN;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseUtil;
 
 use bincode::{deserialize_from, serialize_into};
 
@@ -23,8 +25,10 @@ pub const SHOW: usize = 20;
 
 pub const SAVE_PATH: &str = "save.bc";
 
+static mut MOUSE: Option<MouseUtil> = None;
+
 fn main() {
-    let img = PngImage::load_from_path(File::open("map-alt.png").unwrap()).unwrap();
+    let img = PngImage::load_from_path(File::open("map.png").unwrap()).unwrap();
 
     let map = Map::create_from_image(&img);
     let map_im = map.clone().into_image();
@@ -63,12 +67,11 @@ fn main() {
         g_id,
         map: &map,
         im: map_im,
-        accel: 0.,
-        rot_vel: 0.,
         old_species: vec![],
         time: 0.,
         speed_mult: 1,
         showing: None,
+        place_mouse: Cell::new(false),
     });
 
     let mut wmng = WindowManager::init_window(
@@ -78,6 +81,11 @@ fn main() {
             ..default_settings("Pong")
         },
     );
+
+    unsafe {
+        MOUSE = Some(wmng.context.mouse());
+    }
+
     wmng.start();
 }
 
@@ -88,15 +96,14 @@ struct GameScene<'a> {
 
     g_id: usize,
 
-    accel: f64,
-    rot_vel: f64,
-
     old_species: Vec<Vec<(Genome, usize)>>,
 
     showing: Option<Vec<usize>>,
 
     time: f64,
     speed_mult: u64,
+
+    place_mouse: Cell<bool>,
 }
 
 impl<'a> Drawable for GameScene<'a> {
@@ -121,12 +128,6 @@ impl<'a> Drawable for GameScene<'a> {
                 keycode: Some(Keycode::Left),
                 ..
             } => {
-                self.rot_vel = -5.;
-            }
-            Event::KeyDown {
-                keycode: Some(Keycode::Num1),
-                ..
-            } => {
                 self.speed_mult -= 1;
                 println!("{}x", self.speed_mult);
             }
@@ -134,30 +135,27 @@ impl<'a> Drawable for GameScene<'a> {
                 keycode: Some(Keycode::Right),
                 ..
             } => {
-                self.rot_vel = 5.;
-            }
-            Event::KeyDown {
-                keycode: Some(Keycode::Num2),
-                ..
-            } => {
                 self.speed_mult += 1;
                 println!("{}x", self.speed_mult);
             }
-            Event::KeyDown {
-                keycode: Some(Keycode::Up),
-                ..
-            } => {
-                self.accel = 40.;
-            }
-            Event::KeyDown {
-                keycode: Some(Keycode::Down),
-                ..
-            } => {
-                self.accel = -40.;
-            }
-            Event::KeyUp { .. } => {
-                self.accel = 0.;
-                self.rot_vel = 0.;
+            Event::MouseMotion { mut xrel, mut yrel, .. } => {
+
+                if xrel.abs() > yrel.abs() {
+                    yrel = 0;
+                } else {
+                    xrel = 0;
+                }
+
+                self.place_mouse.set(true);
+
+                for game in &mut self.games {
+                    if !game.died {
+                        if let Controller::Human = game.controller {
+                            game.player_dir += xrel as f64 * 0.002;
+                            game.player_speed -= yrel as f64 * 0.8;
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -173,13 +171,6 @@ impl<'a> Drawable for GameScene<'a> {
         for i in 0..self.speed_mult {
             for game in &mut self.games {
                 game.update(dt);
-
-                if !game.died {
-                    if let Controller::Human = game.controller {
-                        game.player_dir += self.rot_vel * dt;
-                        game.player_speed += self.accel * dt;
-                    }
-                }
             }
         }
 
@@ -209,6 +200,17 @@ impl<'a> Drawable for GameScene<'a> {
                 _ => {}
             }
             game.draw(canvas, position, settings);
+        }
+
+        if self.place_mouse.replace(false) {
+            unsafe {
+                let (w, h) = canvas.window().size();
+                if let Some(mouse) = &MOUSE {
+                    mouse.warp_mouse_in_window(canvas.window(), w as i32 / 2, h as i32 / 2);
+                    mouse.show_cursor(false);
+                    mouse.set_relative_mouse_mode(true);
+                }
+            }
         }
     }
 }
